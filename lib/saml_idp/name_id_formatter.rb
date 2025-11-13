@@ -28,14 +28,37 @@ module SamlIdp
 
     def build(version, key_val)
       key_val = Array(key_val)
-      name = key_val.first.to_s.underscore
-      getter = build_getter key_val.last || name
+      raw_name = key_val.first
+
+      name = literal_urn?(raw_name) ? raw_name.to_s : build_urn(version, raw_name)
+      getter_key = key_val.length > 1 ? key_val.last : default_getter_value(raw_name)
+
       {
-        name: "urn:oasis:names:tc:SAML:#{version}:nameid-format:#{name.camelize(:lower)}",
-        getter: getter
+        name: name,
+        getter: build_getter(getter_key)
       }
     end
     private :build
+
+    def build_urn(version, key_val)
+      name = key_val.to_s.underscore
+      "urn:oasis:names:tc:SAML:#{version}:nameid-format:#{name.camelize(:lower)}"
+    end
+    private :build_urn
+
+    def default_getter_value(name)
+      if literal_urn?(name)
+        name.to_s.split(':nameid-format:').last.to_s.underscore
+      else
+        name.to_s.underscore
+      end
+    end
+    private :default_getter_value
+
+    def literal_urn?(value)
+      value.respond_to?(:to_s) && value.to_s.include?(':nameid-format:')
+    end
+    private :literal_urn?
 
     def build_getter(getter_val)
       if getter_val.respond_to?(:call)
